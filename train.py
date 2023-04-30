@@ -19,8 +19,29 @@ from dataset import Dataset
 
 from evaluate import evaluate
 
-def main(args, configs):
-    device = torch.device("cuda:{}".format(args.local_rank) if torch.cuda.is_available() else "cpu")
+def ddp_training(args, configs, local_rank, local_world_size):
+    dist.init_process_group(backend="nccl")
+
+    print(
+        f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
+        + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
+    )
+
+    main(args, configs, local_rank, local_world_size)
+
+    # Tear down the process group
+    dist.destroy_process_group()
+
+def main(args, configs, local_rank, local_world_size):
+    n = torch.cuda.device_count() // local_world_size
+    device_ids = list(range(local_rank * n, (local_rank + 1) * n))
+
+    print(
+        f"[{os.getpid()}] rank = {dist.get_rank()}, "
+        + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids} \n", end=''
+    )
+    # device = torch.device("cuda:{}".format(local_rank) if torch.cuda.is_available() else "cpu")
+    device = device_ids[0]
     
     print("Prepare training ...")
     preprocess_config, model_config, train_config = configs
@@ -38,17 +59,18 @@ def main(args, configs):
     #     scaler = torch.cuda.amp.GradScaler()
     if args.distributed_training == True:
         dist.init_process_group(backend="nccl")
-        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank)
         print(
             f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
             + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
         )
-        train_sampler = DistributedSampler(dataset=dataset)
+        train_sampler = DistributedSampler(
+            dataset=dataset,
+            num_replicas=local_world_size, 
+            rank=local_rank,)
     else:
         model = nn.DataParallel(model)
     num_param = get_param_num(model)
-    
-    
 
     loader = DataLoader(
         dataset,
@@ -235,4 +257,5 @@ if __name__ == "__main__":
     train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
     configs = (preprocess_config, model_config, train_config)
 
-    main(args, configs)
+    # main(args, configs)
+    ddp_training(args, configs, args.local_rank, args.local_world_size)
