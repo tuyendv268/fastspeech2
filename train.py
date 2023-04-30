@@ -41,7 +41,12 @@ def main(args, configs, local_rank, local_world_size):
         + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids} \n", end=''
     )
     # device = torch.device("cuda:{}".format(local_rank) if torch.cuda.is_available() else "cpu")
-    device = device_ids[0]
+    rank = dist.get_rank()
+    print(f"Start running basic DDP example on rank {rank}.")
+
+    # create model and move it to GPU with id rank
+    # device = f"cuda:{rank % torch.cuda.device_count()}"
+    device = rank % torch.cuda.device_count()
     
     print("Prepare training ...")
     preprocess_config, model_config, train_config = configs
