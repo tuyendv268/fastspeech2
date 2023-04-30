@@ -110,7 +110,7 @@ def main(args, configs):
 
                     # Update weights
                     if args.fp16 == True:
-                        optimizer._optimizer._update_learning_rate()
+                        optimizer._update_learning_rate()
                         scaler.step(optimizer._optimizer)
                         optimizer.zero_grad()
                     else:
