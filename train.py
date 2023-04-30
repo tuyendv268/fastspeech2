@@ -48,6 +48,10 @@ def main(args, configs):
     if args.ddp == True:
         dist.init_process_group(backend="nccl")
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+        print(
+            f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
+            + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
+        )
     else:
         model = nn.DataParallel(model)
     num_param = get_param_num(model)
