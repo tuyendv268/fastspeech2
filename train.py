@@ -125,7 +125,7 @@ def main(args, configs):
                 #     scaler.update()
                 # else:
                     # Forward
-                batch.append(device)
+                batch = tuple(list(batch).append(device))
                 output = model(*(batch[2:]))
 
                 # Cal Loss
