@@ -53,7 +53,7 @@ def main(args, configs):
     loader = DataLoader(
         dataset,
         batch_size=batch_size * group_size,
-        shuffle=True,
+        shuffle=False,
         collate_fn=dataset.collate_fn,
         sampler=train_sampler
     )
