@@ -7,6 +7,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
+
 
 from utils.model import get_model, get_vocoder, get_param_num
 from utils.tools import to_device, log, synth_one_sample
@@ -15,14 +19,11 @@ from dataset import Dataset
 
 from evaluate import evaluate
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 def main(args, configs):
+    device = torch.device("cuda:{}".format(args.local_rank) if torch.cuda.is_available() else "cpu")
+    
     print("Prepare training ...")
-
     preprocess_config, model_config, train_config = configs
-
     # Get dataset
     dataset = Dataset(
         "train.txt", preprocess_config, train_config, sort=True, drop_last=True
@@ -30,19 +31,25 @@ def main(args, configs):
     batch_size = train_config["optimizer"]["batch_size"]
     group_size = 4  # Set this larger than 1 to enable sorting in Dataset
     assert batch_size * group_size < len(dataset)
+    train_sampler = DistributedSampler(dataset=dataset)
+
     loader = DataLoader(
         dataset,
         batch_size=batch_size * group_size,
         shuffle=True,
         collate_fn=dataset.collate_fn,
+        sampler=train_sampler
     )
 
     # Prepare model
     model, optimizer = get_model(args, configs, device, train=True)
     # if args.fp16 == True:
     #     scaler = torch.cuda.amp.GradScaler()
-
-    model = nn.DataParallel(model)
+    if args.ddp == True:
+        dist.init_process_group(backend="nccl")
+        model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
+    else:
+        model = nn.DataParallel(model)
     num_param = get_param_num(model)
     Loss = FastSpeech2Loss(preprocess_config, model_config).to(device)
     print("Number of FastSpeech2 Parameters:", num_param)
@@ -183,8 +190,7 @@ def main(args, configs):
 
             inner_bar.update(1)
         epoch += 1
-
-
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--restore_step", type=int, default=0)
@@ -205,6 +211,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-fp16", "--fp16", type=bool, required=True, help="path to train.yaml"
     )
+    
+    parser.add_argument(
+        "-ddp", "--distributed_training", type=bool, required=True, help="path to train.yaml"
+    )
+
+    parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--local_world_size", type=int, default=1)
+
     args = parser.parse_args()
 
     # Read Config
