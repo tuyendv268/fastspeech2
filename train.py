@@ -58,12 +58,8 @@ def main(args, configs, local_rank, local_world_size):
     # if args.fp16 == True:
     #     scaler = torch.cuda.amp.GradScaler()
     if args.distributed_training == True:
-        dist.init_process_group(backend="nccl")
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank)
-        print(
-            f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
-            + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
-        )
+        # dist.init_process_group(backend="nccl")
+        model = DDP(model, device_ids=[device], output_device=device)
         train_sampler = DistributedSampler(
             dataset=dataset,
             num_replicas=local_world_size, 
