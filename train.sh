@@ -12,10 +12,10 @@ python -m torch.distributed.launch \
         --node_rank=0 \
         --nproc_per_node=1 \
         train.py \
+            --local_world_size=1 \
+            --local_rank=0 \
             -p config/preprocess.yaml \
             -m config/model.yaml \
             -t config/train.yaml \
             -fp16 False \
-            -ddp True \
-            --local_world_size=1 \
-            --local_rank=0
+            -ddp True
