@@ -61,8 +61,8 @@ def main(args, configs):
         model = DDP(model, device_ids=[device], output_device=device)
         train_sampler = DistributedSampler(
             dataset=dataset,
-            num_replicas=local_world_size, 
-            rank=local_rank,)
+            num_replicas=dist.get_world_size(), 
+            rank=dist.get_rank(),)
     else:
         model = nn.DataParallel(model)
     num_param = get_param_num(model)
