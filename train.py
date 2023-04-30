@@ -39,8 +39,8 @@ def main(args, configs):
 
     # Prepare model
     model, optimizer = get_model(args, configs, device, train=True)
-    if args.fp16 == True:
-        scaler = torch.cuda.amp.GradScaler()
+    # if args.fp16 == True:
+    #     scaler = torch.cuda.amp.GradScaler()
 
     model = nn.DataParallel(model)
     num_param = get_param_num(model)
@@ -81,41 +81,36 @@ def main(args, configs):
             for batch in batchs:
                 batch = to_device(batch, device)
                 
-                if args.fp16 == True:
-                    with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
-                        output = model(*(batch[2:]))
+                # if args.fp16 == True:
+                #     with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
+                #         output = model(*(batch[2:]))
 
-                        losses = Loss(batch, output)
-                        total_loss = losses[0]
+                #         losses = Loss(batch, output)
+                #         total_loss = losses[0]
 
-                        total_loss = total_loss / grad_acc_step
+                #         total_loss = total_loss / grad_acc_step
                     
-                    scaler.scale(total_loss).backward()
-                    # scaler.step(optimizer._optimizer)
-                    # scaler.update()
-                else:
+                #     scaler.scale(total_loss).backward()
+                #     scaler.step(optimizer)
+                #     scaler.update()
+                # else:
                     # Forward
-                    output = model(*(batch[2:]))
+                output = model(*(batch[2:]))
 
-                    # Cal Loss
-                    losses = Loss(batch, output)
-                    total_loss = losses[0]
+                # Cal Loss
+                losses = Loss(batch, output)
+                total_loss = losses[0]
 
-                    # Backward
-                    total_loss = total_loss / grad_acc_step
-                    total_loss.backward()
+                # Backward
+                total_loss = total_loss / grad_acc_step
+                total_loss.backward()
                 if step % grad_acc_step == 0:
                     # Clipping gradients to avoid gradient explosion
                     nn.utils.clip_grad_norm_(model.parameters(), grad_clip_thresh)
 
                     # Update weights
-                    if args.fp16 == True:
-                        optimizer._update_learning_rate()
-                        scaler.step(optimizer._optimizer)
-                        optimizer.zero_grad()
-                    else:
-                        optimizer.step_and_update_lr()
-                        optimizer.zero_grad()
+                    optimizer.step_and_update_lr()
+                    optimizer.zero_grad()
 
                 if step % log_step == 0:
                     losses = [l.item() for l in losses]
