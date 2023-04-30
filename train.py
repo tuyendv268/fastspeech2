@@ -125,8 +125,8 @@ def main(args, configs):
                 #     scaler.update()
                 # else:
                     # Forward
-                batch = tuple(list(batch).append(device))
-                output = model(*(batch[2:]))
+                print(len(batch[2:]), device)
+                output = model(*(batch[2:]), device)
 
                 # Cal Loss
                 losses = Loss(batch, output)
