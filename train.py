@@ -91,7 +91,7 @@ def main(args, configs):
                         total_loss = total_loss / grad_acc_step
                     
                     scaler.scale(total_loss).backward()
-                    scaler.step(optimizer)
+                    scaler.step(optimizer._optimizer)
                     scaler.update()
                 else:
                     # Forward
