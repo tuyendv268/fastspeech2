@@ -124,7 +124,6 @@ class Dataset(Dataset):
         else:
             idx_arr = np.arange(data_size)
             
-        print("data_size", data_size)
         tail = idx_arr[len(idx_arr) - (len(idx_arr) % self.batch_size) :]
         idx_arr = idx_arr[: len(idx_arr) - (len(idx_arr) % self.batch_size)]
         idx_arr = idx_arr.reshape((-1, self.batch_size)).tolist()

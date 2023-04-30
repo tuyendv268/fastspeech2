@@ -91,8 +91,8 @@ def main(args, configs):
                         total_loss = total_loss / grad_acc_step
                     
                     scaler.scale(total_loss).backward()
-                    scaler.step(optimizer._optimizer)
-                    scaler.update()
+                    # scaler.step(optimizer._optimizer)
+                    # scaler.update()
                 else:
                     # Forward
                     output = model(*(batch[2:]))
@@ -109,8 +109,13 @@ def main(args, configs):
                     nn.utils.clip_grad_norm_(model.parameters(), grad_clip_thresh)
 
                     # Update weights
-                    optimizer.step_and_update_lr()
-                    optimizer.zero_grad()
+                    if args.fp16 == True:
+                        optimizer._optimizer._update_learning_rate()
+                        scaler.step(optimizer._optimizer)
+                        optimizer.zero_grad()
+                    else:
+                        optimizer.step_and_update_lr()
+                        optimizer.zero_grad()
 
                 if step % log_step == 0:
                     losses = [l.item() for l in losses]
