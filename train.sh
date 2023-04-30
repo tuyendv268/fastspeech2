@@ -7,13 +7,9 @@
 #     -fp16 False \
 #     -ddp True
 
-python -m torch.distributed.launch \
-        --nnode=1 \
-        --node_rank=0 \
-        --nproc_per_node=1 \
+torchrun --nnodes=1 \
+        --nproc_per_node=2 \
         train.py \
-            --local_world_size=1 \
-            --local_rank=0 \
             -p config/preprocess.yaml \
             -m config/model.yaml \
             -t config/train.yaml \

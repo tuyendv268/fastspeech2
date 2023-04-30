@@ -19,7 +19,7 @@ from dataset import Dataset
 
 from evaluate import evaluate
 
-def ddp_training(args, configs, local_rank, local_world_size):
+def ddp_training(args, configs):
     dist.init_process_group(backend="nccl")
 
     print(
@@ -27,22 +27,16 @@ def ddp_training(args, configs, local_rank, local_world_size):
         + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
     )
 
-    main(args, configs, local_rank, local_world_size)
+    main(args, configs)
 
     # Tear down the process group
     dist.destroy_process_group()
 
-def main(args, configs, local_rank, local_world_size):
-    n = torch.cuda.device_count() // local_world_size
-    device_ids = list(range(local_rank * n, (local_rank + 1) * n))
+def main(args, configs):
 
-    print(
-        f"[{os.getpid()}] rank = {dist.get_rank()}, "
-        + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids} \n", end=''
-    )
     # device = torch.device("cuda:{}".format(local_rank) if torch.cuda.is_available() else "cpu")
     rank = dist.get_rank()
-    print(f"Start running basic DDP example on rank {rank}.")
+    print(f"Start training DDP text2speech on rank {rank}.")
 
     # create model and move it to GPU with id rank
     # device = f"cuda:{rank % torch.cuda.device_count()}"
@@ -245,9 +239,6 @@ if __name__ == "__main__":
         "-ddp", "--distributed_training", type=bool, required=True, help="path to train.yaml"
     )
 
-    parser.add_argument("--local_rank", type=int, default=0)
-    parser.add_argument("--local_world_size", type=int, default=1)
-
     args = parser.parse_args()
 
     # Read Config
@@ -259,4 +250,4 @@ if __name__ == "__main__":
     configs = (preprocess_config, model_config, train_config)
 
     # main(args, configs)
-    ddp_training(args, configs, args.local_rank, args.local_world_size)
+    ddp_training(args, configs)
