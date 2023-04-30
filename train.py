@@ -36,7 +36,7 @@ def main(args, configs):
     model, optimizer = get_model(args, configs, device, train=True)
     # if args.fp16 == True:
     #     scaler = torch.cuda.amp.GradScaler()
-    if args.ddp == True:
+    if args.distributed_training == True:
         dist.init_process_group(backend="nccl")
         model = DDP(model, device_ids=[args.local_rank], output_device=args.local_rank)
         print(
