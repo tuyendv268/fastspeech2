@@ -31,15 +31,6 @@ def main(args, configs):
     batch_size = train_config["optimizer"]["batch_size"]
     group_size = 4  # Set this larger than 1 to enable sorting in Dataset
     assert batch_size * group_size < len(dataset)
-    train_sampler = DistributedSampler(dataset=dataset)
-
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size * group_size,
-        shuffle=True,
-        collate_fn=dataset.collate_fn,
-        sampler=train_sampler
-    )
 
     # Prepare model
     model, optimizer = get_model(args, configs, device, train=True)
@@ -52,9 +43,20 @@ def main(args, configs):
             f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
             + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end=''
         )
+        train_sampler = DistributedSampler(dataset=dataset)
     else:
         model = nn.DataParallel(model)
     num_param = get_param_num(model)
+    
+    
+
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size * group_size,
+        shuffle=True,
+        collate_fn=dataset.collate_fn,
+        sampler=train_sampler
+    )
     Loss = FastSpeech2Loss(preprocess_config, model_config).to(device)
     print("Number of FastSpeech2 Parameters:", num_param)
 
