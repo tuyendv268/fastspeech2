@@ -12,10 +12,7 @@ from model import FastSpeech2Loss
 from dataset import Dataset
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-def evaluate(model, step, configs, logger=None, vocoder=None):
+def evaluate(model, step, configs, logger=None, vocoder=None, device=None):
     preprocess_config, model_config, train_config = configs
 
     # Get dataset

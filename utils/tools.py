@@ -101,7 +101,6 @@ def synth_one_sample(targets, predictions, vocoder, model_config, preprocess_con
 
     basename = targets[0][0]
     src_len = predictions[8][0].item()
-    print(src_len)
     mel_len = predictions[9][0].item()
     mel_target = targets[5][0, :mel_len].detach().transpose(0, 1)
     mel_prediction = predictions[1][0, :mel_len].detach().transpose(0, 1)
