@@ -38,7 +38,7 @@ def evaluate(model, step, configs, device, logger=None, vocoder=None,):
             batch = to_device(batch, device)
             with torch.no_grad():
                 # Forward
-                output = model(*(batch[2:]))
+                output = model(*(batch[2:]), device)
 
                 # Cal Loss
                 losses = Loss(batch, output)
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     configs = (preprocess_config, model_config, train_config)
 
     # Get model
-    model = get_model(args, configs, device, train=False).to(device)
+    # model = get_model(args, configs, device, train=False).to(device)
 
-    message = evaluate(model, args.restore_step, configs)
-    print(message)
+    # message = evaluate(model, args.restore_step, configs)
+    # print(message)
