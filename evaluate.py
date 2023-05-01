@@ -12,7 +12,8 @@ from model import FastSpeech2Loss
 from dataset import Dataset
 
 
-def evaluate(model, step, configs, logger=None, vocoder=None, device=None):
+def evaluate(model, step, configs, device, logger=None, vocoder=None,):
+    print("Evaluate on: ", device )
     preprocess_config, model_config, train_config = configs
 
     # Get dataset
