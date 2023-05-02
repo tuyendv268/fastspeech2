@@ -14,4 +14,5 @@ torchrun --nnodes=1 \
             -m config/model.yaml \
             -t config/train.yaml \
             -fp16 False \
-            -ddp True
+            -ddp True \
+            --restore_step 20000 
