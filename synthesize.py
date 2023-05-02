@@ -6,13 +6,12 @@ import torch
 import yaml
 import numpy as np
 from torch.utils.data import DataLoader
-from g2p_en import G2p
 from pypinyin import pinyin, Style
 
 from utils.model import get_model, get_vocoder
 from utils.tools import to_device, synth_samples
 from dataset import TextDataset
-from text import text_to_sequence
+from text import phoneme_to_ids
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -33,13 +32,13 @@ def preprocess_english(text, preprocess_config):
     text = text.rstrip(punctuation)
     lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
 
-    g2p = G2p()
     phones = []
     words = re.split(r"([,;.\-\?\!\s+])", text)
     for w in words:
         if w.lower() in lexicon:
             phones += lexicon[w.lower()]
         else:
+            pass
             phones += list(filter(lambda p: p != " ", g2p(w)))
     phones = "{" + "}{".join(phones) + "}"
     phones = re.sub(r"\{[^\w\s]?\}", "{sp}", phones)
@@ -48,36 +47,8 @@ def preprocess_english(text, preprocess_config):
     print("Raw Text Sequence: {}".format(text))
     print("Phoneme Sequence: {}".format(phones))
     sequence = np.array(
-        text_to_sequence(
-            phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
-        )
-    )
-
-    return np.array(sequence)
-
-
-def preprocess_mandarin(text, preprocess_config):
-    lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
-
-    phones = []
-    pinyins = [
-        p[0]
-        for p in pinyin(
-            text, style=Style.TONE3, strict=False, neutral_tone_with_five=True
-        )
-    ]
-    for p in pinyins:
-        if p in lexicon:
-            phones += lexicon[p]
-        else:
-            phones.append("sp")
-
-    phones = "{" + " ".join(phones) + "}"
-    print("Raw Text Sequence: {}".format(text))
-    print("Phoneme Sequence: {}".format(phones))
-    sequence = np.array(
-        text_to_sequence(
-            phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
+        phoneme_to_ids(
+            phones
         )
     )
 
@@ -204,10 +175,8 @@ if __name__ == "__main__":
         speakers = np.array([args.speaker_id])
         if preprocess_config["preprocessing"]["text"]["language"] == "en":
             texts = np.array([preprocess_english(args.text, preprocess_config)])
-        elif preprocess_config["preprocessing"]["text"]["language"] == "zh":
-            texts = np.array([preprocess_mandarin(args.text, preprocess_config)])
         text_lens = np.array([len(texts[0])])
-        batchs = [(ids, raw_texts, speakers, texts, text_lens, max(text_lens))]
+        batchs = [(ids, raw_texts, texts, text_lens, max(text_lens))]
 
     control_values = args.pitch_control, args.energy_control, args.duration_control
 

@@ -13,7 +13,6 @@ from dataset import Dataset
 
 
 def evaluate(model, step, configs, device, logger=None, vocoder=None,):
-    print("Evaluate on: ", device )
     preprocess_config, model_config, train_config = configs
 
     # Get dataset
@@ -112,7 +111,7 @@ if __name__ == "__main__":
     configs = (preprocess_config, model_config, train_config)
 
     # Get model
-    # model = get_model(args, configs, device, train=False).to(device)
+    model = get_model(args, configs, device, train=False).to(device)
 
-    # message = evaluate(model, args.restore_step, configs)
-    # print(message)
+    message = evaluate(model, args.restore_step, configs, device="cpu")
+    print(message)

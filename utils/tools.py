@@ -84,7 +84,10 @@ def get_mask_from_lengths(lengths, max_len=None, device=None):
     batch_size = lengths.shape[0]
     if max_len is None:
         max_len = torch.max(lengths).item()
-    ids = torch.arange(0, max_len).unsqueeze(0).expand(batch_size, -1).to(f"cuda:{device}")
+    if device is not None:
+        ids = torch.arange(0, max_len).unsqueeze(0).expand(batch_size, -1).to(f"cuda:{device}")
+    else:
+        ids = torch.arange(0, max_len).unsqueeze(0).expand(batch_size, -1)
     mask = ids >= lengths.unsqueeze(1).expand(-1, max_len)
 
     return mask
@@ -153,7 +156,6 @@ def synth_one_sample(targets, predictions, vocoder, model_config, preprocess_con
 
 
 def synth_samples(targets, predictions, vocoder, model_config, preprocess_config, path):
-
     basenames = targets[0]
     for i in range(len(predictions[0])):
         basename = basenames[i]
