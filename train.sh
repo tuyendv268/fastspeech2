@@ -15,4 +15,4 @@ torchrun --nnodes=1 \
             -t config/train.yaml \
             -fp16 False \
             -ddp True \
-            --restore_step 55000 
+            --restore_step 76000 
