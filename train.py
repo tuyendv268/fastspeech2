@@ -27,29 +27,25 @@ def ddp_training(args, configs):
     )
 
     main(args, configs)
-
-    # Tear down the process group
     dist.destroy_process_group()
 
 def main(args, configs):    
     # if args.fp16 == True:
     #     scaler = torch.cuda.amp.GradScaler()
     preprocess_config, model_config, train_config = configs
-    # Get dataset
     dataset = Dataset(
         "train.txt", preprocess_config, train_config, sort=True, drop_last=True
     )
     batch_size = train_config["optimizer"]["batch_size"]
     group_size = 4  # Set this larger than 1 to enable sorting in Dataset
-    assert batch_size * group_size < len(dataset)
-
 
     if args.distributed_training == True:
+        dist.init_process_group(backend="nccl")
+        print(
+            f"[{os.getpid()}]: world_size = {dist.get_world_size()}, "
+            + f"rank = {dist.get_rank()}, backend={dist.get_backend()} \n", end='')
         rank = dist.get_rank()
         print(f"Start training DDP text2speech on rank {rank}.")
-
-        # create model and move it to GPU with id rank
-        # device = f"cuda:{rank % torch.cuda.device_count()}"
         device = rank % torch.cuda.device_count()
         
         print("Prepare training ...")
@@ -62,11 +58,10 @@ def main(args, configs):
         
         loader = DataLoader(
             dataset,
-            batch_size=batch_size * group_size,
+            batch_size=int(batch_size * group_size / torch.cuda.device_count()),
             shuffle=False,
             collate_fn=dataset.collate_fn,
-            sampler=train_sampler
-        )
+            sampler=train_sampler)
     else:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model, optimizer = get_model(args, configs, device, train=True)
@@ -75,18 +70,13 @@ def main(args, configs):
             dataset,
             batch_size=batch_size * group_size,
             shuffle=False,
-            collate_fn=dataset.collate_fn,
-        )
-    #     model = nn.DataParallel(model)
+            collate_fn=dataset.collate_fn,)
     num_param = get_param_num(model)
 
     Loss = FastSpeech2Loss(preprocess_config, model_config).to(device)
     print("Number of FastSpeech2 Parameters:", num_param)
-
-    # Load vocoder
     vocoder = get_vocoder(model_config, device)
 
-    # Init logger
     for p in train_config["path"].values():
         os.makedirs(p, exist_ok=True)
     train_log_path = os.path.join(train_config["path"]["log_path"], "train")
@@ -118,18 +108,13 @@ def main(args, configs):
                 batch = to_device(batch, device)
                 output = model(*(batch[2:]), device)
 
-                # Cal Loss
                 losses = Loss(batch, output)
                 total_loss = losses[0]
 
-                # Backward
                 total_loss = total_loss / grad_acc_step
                 total_loss.backward()
                 if step % grad_acc_step == 0:
-                    # Clipping gradients to avoid gradient explosion
                     nn.utils.clip_grad_norm_(model.parameters(), grad_clip_thresh)
-
-                    # Update weights
                     optimizer.step_and_update_lr()
                     optimizer.zero_grad()
 
@@ -137,8 +122,7 @@ def main(args, configs):
                     losses = [l.item() for l in losses]
                     message1 = "Step {}/{}, ".format(step, total_step)
                     message2 = "Total Loss: {:.4f}, Mel Loss: {:.4f}, Mel PostNet Loss: {:.4f}, Pitch Loss: {:.4f}, Energy Loss: {:.4f}, Duration Loss: {:.4f}".format(
-                        *losses
-                    )
+                        *losses)
 
                     with open(os.path.join(train_log_path, "log.txt"), "a") as f:
                         f.write(message1 + message2 + "\n")
@@ -153,28 +137,22 @@ def main(args, configs):
                         output,
                         vocoder,
                         model_config,
-                        preprocess_config,
-                    )
+                        preprocess_config,)
                     log(
                         train_logger,
                         fig=fig,
-                        tag="Training/step_{}_{}".format(step, tag),
-                    )
-                    sampling_rate = preprocess_config["preprocessing"]["audio"][
-                        "sampling_rate"
-                    ]
+                        tag="Training/step_{}_{}".format(step, tag),)
+                    sampling_rate = preprocess_config["preprocessing"]["audio"]["sampling_rate"]
                     log(
                         train_logger,
                         audio=wav_reconstruction,
                         sampling_rate=sampling_rate,
-                        tag="Training/step_{}_{}_reconstructed".format(step, tag),
-                    )
+                        tag="Training/step_{}_{}_reconstructed".format(step, tag))
                     log(
                         train_logger,
                         audio=wav_prediction,
                         sampling_rate=sampling_rate,
-                        tag="Training/step_{}_{}_synthesized".format(step, tag),
-                    )
+                        tag="Training/step_{}_{}_synthesized".format(step, tag))
 
                 if step % val_step == 0:
                     model.eval()
@@ -193,8 +171,7 @@ def main(args, configs):
                         },
                         os.path.join(
                             train_config["path"]["ckpt_path"],
-                            "{}.pth.tar".format(step),
-                        ),
+                            "{}.pth.tar".format(step),),
                     )
 
                 if step == total_step:
@@ -215,24 +192,12 @@ if __name__ == "__main__":
         required=True,
         help="path to preprocess.yaml",
     )
-    parser.add_argument(
-        "-m", "--model_config", type=str, required=True, help="path to model.yaml"
-    )
-    parser.add_argument(
-        "-t", "--train_config", type=str, required=True, help="path to train.yaml"
-    )
-    
-    parser.add_argument(
-        "-fp16", "--fp16", type=bool, required=True, help="path to train.yaml"
-    )
-    
-    parser.add_argument(
-        "-ddp", "--distributed_training", type=bool, help="path to train.yaml"
-    )
-
+    parser.add_argument("-m", "--model_config", type=str, required=True, help="path to model.yaml")
+    parser.add_argument("-t", "--train_config", type=str, required=True, help="path to train.yaml")
+    parser.add_argument("-fp16", "--fp16", type=bool, required=True, help="path to train.yaml")
+    parser.add_argument("-ddp", "--distributed_training", type=bool, help="path to train.yaml")
     args = parser.parse_args()
-
-    # Read Config
+    
     preprocess_config = yaml.load(
         open(args.preprocess_config, "r"), Loader=yaml.FullLoader
     )
@@ -240,7 +205,4 @@ if __name__ == "__main__":
     train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
     configs = (preprocess_config, model_config, train_config)
     
-    if args.distributed_training == True:
-        ddp_training(args, configs)
-    else:
-        main(args, configs)
+    main(args, configs)
