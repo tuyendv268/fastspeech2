@@ -31,17 +31,9 @@ def ddp_training(args, configs):
     # Tear down the process group
     dist.destroy_process_group()
 
-def main(args, configs):
-
-    # device = torch.device("cuda:{}".format(local_rank) if torch.cuda.is_available() else "cpu")
-    rank = dist.get_rank()
-    print(f"Start training DDP text2speech on rank {rank}.")
-
-    # create model and move it to GPU with id rank
-    # device = f"cuda:{rank % torch.cuda.device_count()}"
-    device = rank % torch.cuda.device_count()
-    
-    print("Prepare training ...")
+def main(args, configs):    
+    # if args.fp16 == True:
+    #     scaler = torch.cuda.amp.GradScaler()
     preprocess_config, model_config, train_config = configs
     # Get dataset
     dataset = Dataset(
@@ -51,28 +43,43 @@ def main(args, configs):
     group_size = 4  # Set this larger than 1 to enable sorting in Dataset
     assert batch_size * group_size < len(dataset)
 
-    # Prepare model
-    model, optimizer = get_model(args, configs, device, train=True)
-    # if args.fp16 == True:
-    #     scaler = torch.cuda.amp.GradScaler()
+
     if args.distributed_training == True:
-        # dist.init_process_group(backend="nccl")
+        rank = dist.get_rank()
+        print(f"Start training DDP text2speech on rank {rank}.")
+
+        # create model and move it to GPU with id rank
+        # device = f"cuda:{rank % torch.cuda.device_count()}"
+        device = rank % torch.cuda.device_count()
+        
+        print("Prepare training ...")
+        model, optimizer = get_model(args, configs, device, train=True)
         model = DDP(model, device_ids=[device], output_device=device)
         train_sampler = DistributedSampler(
             dataset=dataset,
             num_replicas=dist.get_world_size(), 
             rank=dist.get_rank(),)
+        
+        loader = DataLoader(
+            dataset,
+            batch_size=batch_size * group_size,
+            shuffle=False,
+            collate_fn=dataset.collate_fn,
+            sampler=train_sampler
+        )
     else:
-        model = nn.DataParallel(model)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, optimizer = get_model(args, configs, device, train=True)
+        
+        loader = DataLoader(
+            dataset,
+            batch_size=batch_size * group_size,
+            shuffle=False,
+            collate_fn=dataset.collate_fn,
+        )
+    #     model = nn.DataParallel(model)
     num_param = get_param_num(model)
 
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size * group_size,
-        shuffle=False,
-        collate_fn=dataset.collate_fn,
-        sampler=train_sampler
-    )
     Loss = FastSpeech2Loss(preprocess_config, model_config).to(device)
     print("Number of FastSpeech2 Parameters:", num_param)
 
@@ -109,23 +116,6 @@ def main(args, configs):
         for batchs in loader:
             for batch in batchs:
                 batch = to_device(batch, device)
-                
-                # if args.fp16 == True:
-                #     with torch.amp.autocast(device_type='cuda', dtype=torch.float16):
-                #         output = model(*(batch[2:]))
-
-                #         losses = Loss(batch, output)
-                #         total_loss = losses[0]
-
-                #         total_loss = total_loss / grad_acc_step
-                    
-                #     scaler.scale(total_loss).backward()
-                #     scaler.step(optimizer)
-                #     scaler.update()
-                # else:
-                    # Forward
-                # batch = list(batch)
-                # batch.append(device)
                 output = model(*(batch[2:]), device)
 
                 # Cal Loss
@@ -237,7 +227,7 @@ if __name__ == "__main__":
     )
     
     parser.add_argument(
-        "-ddp", "--distributed_training", type=bool, required=True, help="path to train.yaml"
+        "-ddp", "--distributed_training", type=bool, help="path to train.yaml"
     )
 
     args = parser.parse_args()
@@ -249,6 +239,8 @@ if __name__ == "__main__":
     model_config = yaml.load(open(args.model_config, "r"), Loader=yaml.FullLoader)
     train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
     configs = (preprocess_config, model_config, train_config)
-
-    # main(args, configs)
-    ddp_training(args, configs)
+    
+    if args.distributed_training == True:
+        ddp_training(args, configs)
+    else:
+        main(args, configs)
