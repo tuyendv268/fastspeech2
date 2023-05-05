@@ -5,7 +5,8 @@ path:
   lexicon_path: "data/lexicon_ipa"
   raw_path: "data/wavs"
   # preprocessed_path: "/kaggle/input/texttospeech/processed_data"
-  preprocessed_path: "/kaggle/input/d/tuyenduongvan/features/processed_data"
+  # preprocessed_path: "/kaggle/input/d/tuyenduongvan/features/processed_data"
+  preprocessed_path: "/kaggle/input/pretraineddataset/processed_data" 
   # preprocessed_path: "/home/tuyendv/Desktop/work_space/hust/expressive_speech_synthesis/FastSpeech2/processed_data"
 preprocessing:
   val_size: 512
