@@ -163,10 +163,20 @@ def main(args, configs):
 
                     model.train()
 
-                if step % save_step == 0:
+                if step % save_step == 0 and args.distributed_training == False:
                     torch.save(
                         {
-                            "model": model.modules.state_dict(),
+                            "model": model.state_dict(),
+                            "optimizer": optimizer._optimizer.state_dict(),
+                        },
+                        os.path.join(
+                            train_config["path"]["ckpt_path"],
+                            "{}.pth.tar".format(step),),
+                    )
+                elif step % save_step == 0:
+                    torch.save(
+                        {
+                            "model": model.module.state_dict(),
                             "optimizer": optimizer._optimizer.state_dict(),
                         },
                         os.path.join(
