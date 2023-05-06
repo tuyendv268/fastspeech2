@@ -163,10 +163,10 @@ def main(args, configs):
 
                     model.train()
 
-                if step % save_step == 0 and args.distributed_training == False:
+                if step % save_step == 0 and args.distributed_training == True:
                     torch.save(
                         {
-                            "model": model.state_dict(),
+                            "model": model.module.state_dict(),
                             "optimizer": optimizer._optimizer.state_dict(),
                         },
                         os.path.join(
@@ -176,7 +176,7 @@ def main(args, configs):
                 elif step % save_step == 0:
                     torch.save(
                         {
-                            "model": model.module.state_dict(),
+                            "model": model.state_dict(),
                             "optimizer": optimizer._optimizer.state_dict(),
                         },
                         os.path.join(
