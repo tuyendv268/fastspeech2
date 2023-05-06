@@ -163,7 +163,7 @@ def main(args, configs):
 
                     model.train()
 
-                if step % save_step == 0 and device == 0:
+                if step % save_step == 0:
                     torch.save(
                         {
                             "model": model.module.state_dict(),
