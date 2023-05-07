@@ -32,9 +32,13 @@ def text_to_phonemes(text, lexicon):
             phonemes += phoneme
         elif len(word.strip()) == 0:
             continue
+        elif word in ",.?!":
+            phonemes.append(word)
         else:
-            pass
-            
+            print(word)
+            print("not in lexicon")
+    
+    # phonemes = 's ɨ˦˥ k̚ m a˨˩ˀ ɲ k uə˨˩˨ h oː˨˩ tɕ uː˨˩˨ t i˨˩ c v aː˦˨ s ɨ˦˥ k̚ m a˨˩ˀ ɲ k uə˨˩˨ z ə˨˨ n t ɔ˨˩ kp v iə˨˩ t̚ n aː˨˨ m l aː˨˨ ʔ əː˨˩˦ tɕ oː˨ˀ˥ ɗ w aː˨˨ n k eː˦˥ t̚ tʰ o˨˦ ŋm ɲ ə˦˥ t̚ ʔ ə˨˦ j'.split()
     phoneme_ids = phoneme_to_ids(" ".join(phonemes))
     phoneme_ids = torch.tensor(phoneme_ids).reshape(1, len(phoneme_ids))
     
@@ -56,10 +60,10 @@ if __name__ == "__main__":
     preprocess_config["path"]["preprocessed_path"] = "processed_data"
     
     class args:
-        restore_step = 76000
+        restore_step = 114000
     _args = args()
     
-    text = "hôm nay là ngày mùng sáu tháng năm năm hai nghìn hai mươi ba"
+    text = "sức mạnh của hồ chủ tịch và sức mạnh của dân tộc việt nam là ở chỗ đoàn kết thống nhất ấy"
     
     model = get_model(_args, configs, device="cpu", train=False)
     vocoder = get_vocoder(model_config, device="cpu")

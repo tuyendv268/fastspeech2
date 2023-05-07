@@ -3,4 +3,4 @@ python train.py \
     -m config/model.yaml \
     -t config/train.yaml \
     -fp16 False \
-    --restore_step 76000 
+    --restore_step 114000 
